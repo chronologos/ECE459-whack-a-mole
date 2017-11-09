@@ -1,0 +1,65 @@
+<html>
+<body>
+<pre>
+<h1>µVision Build Log</h1>
+<h2>Tool Versions:</h2>
+IDE-Version: µVision V5.20.0.0
+Copyright (C) 2016 ARM Ltd and ARM Germany GmbH. All rights reserved.
+License Information: Safkat Islam Duke University Flex license: MDK-ARM Professional: 100 user(s) (mdk_pro) Operation stops: 3 Oct 2018
+ 
+Tool Versions:
+Toolchain:       MDK-ARM Professional: 100 user(s)  Version: 5.20
+Toolchain Path:  C:\Keil_v5\ARM\ARMCC\Bin
+C Compiler:      Armcc.exe V5.06 update 2 (build 183)
+Assembler:       Armasm.exe V5.06 update 2 (build 183)
+Linker/Locator:  ArmLink.exe V5.06 update 2 (build 183)
+Library Manager: ArmAr.exe V5.06 update 2 (build 183)
+Hex Converter:   FromElf.exe V5.06 update 2 (build 183)
+CPU DLL:         SARMCM3.DLL V5.20
+Dialog DLL:      DARMP1.DLL V1.26.0.0
+Target DLL:      CMSIS_AGDI.dll V1.25.20.0
+Dialog DLL:      TARMP1.DLL V1.25.0.0
+ 
+<h2>Project:</h2>
+C:\Users\yt61\Desktop\mbed_nanoRK_B-MAC_round_trip_skeleton\mbed_nanoRK_B-MAC_round_trip_skeleton\mRK_B-MAC_round_trip\mRK.uvprojx
+Project File Date:  11/01/2017
+
+<h2>Output:</h2>
+*** Using Compiler 'V5.06 update 2 (build 183)', folder: 'C:\Keil_v5\ARM\ARMCC\Bin'
+Build target 'mbed LPC1768'
+compiling main.cpp...
+mRK\NanoRk\src\main.cpp(84): warning:  #177-D: variable "i" was declared but never referenced
+    uint8_t i, len, rssi;
+mRK\NanoRk\src\main.cpp(85): warning:  #550-D: variable "val" was set but never used
+    int8_t val;
+mRK\NanoRk\src\main.cpp(86): warning:  #550-D: variable "local_rx_buf" was set but never used
+  	char *local_rx_buf;
+mRK\NanoRk\src\main.cpp(190): warning:  #177-D: variable "j" was declared but never referenced
+    uint8_t j, i, val, len, cnt;
+mRK\NanoRk\src\main.cpp(190): warning:  #177-D: variable "i" was declared but never referenced
+    uint8_t j, i, val, len, cnt;
+mRK\NanoRk\src\main.cpp(190): warning:  #177-D: variable "len" was declared but never referenced
+    uint8_t j, i, val, len, cnt;
+mRK\NanoRk\src\main.cpp(191): warning:  #177-D: variable "v" was declared but never referenced
+    int8_t v;
+mRK\NanoRk\src\main.cpp(193): warning:  #177-D: variable "ret" was declared but never referenced
+    nrk_sig_mask_t ret;
+mRK\NanoRk\src\main.cpp(194): warning:  #177-D: variable "r_period" was declared but never referenced
+    nrk_time_t r_period;
+mRK\NanoRk\src\main.cpp(383): warning:  #1-D: last line of file ends without a newline
+  }
+mRK\NanoRk\src\main.cpp: 10 warnings, 0 errors
+linking...
+Program Size: Code=31888 RO-data=1944 RW-data=388 ZI-data=3720  
+After Build - User command #1: fromelf --bin -o H:\mRK.bin .\Objects\mRK.axf
+".\Objects\mRK.axf" - 0 Error(s), 10 Warning(s).
+
+<h2>Collection of Component include folders:</h2>
+  C:\Users\yt61\Desktop\mbed_nanoRK_B-MAC_round_trip_skeleton\mbed_nanoRK_B-MAC_round_trip_skeleton\mRK_B-MAC_round_trip\RTE
+  C:\Keil_v5\ARM\PACK\Keil\LPC1700_DFP\2.2.0\Device\Include
+
+<h2>Collection of Component Files used:</h2>
+Build Time Elapsed:  00:00:02
+</pre>
+</body>
+</html>
