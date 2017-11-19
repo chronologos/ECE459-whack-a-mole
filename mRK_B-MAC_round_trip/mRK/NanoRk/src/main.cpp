@@ -13,8 +13,7 @@
 #include "bmac.h"
 #include <vector>
 
-#define NODE1
-
+#define NODE3
 nrk_task_type RX_TASK;
 NRK_STK rx_task_stack[NRK_APP_STACKSIZE];
 void master_rx_task (void);
@@ -41,7 +40,7 @@ uint16_t node_buf[10] = {0x0052, 0x0051, 0x0051, 0x0052, 0x0053, 0x0051, 0x0052,
 char master_period_in_s = 0x05; 
 int8_t slave_period_in_s;
 int master_to_send = 0; // stop if to_send == MOLE_APPEARANCES
-
+int master_waiting_for_slave = 0;
 int cumscore = 0; // only meaningful for master
 int mole_active = 0; // only meaningful for slaves
 Timer slave_mole_timer;
@@ -123,15 +122,18 @@ void master_rx_task () {
 
 void slave_rx_task() {
 				#ifdef NODE1
-				bmac_rfRxInfo.srcAddr = 0x0051; 
+				//bmac_rfTxInfo.destAddr = 0x0051;
+				bmac_rfRxInfo.srcAddr = 0x0051;
 				#endif
 		    #ifdef NODE2
-				bmac_rfRxInfo.srcAddr = 0x0052; 
+				//bmac_rfTxInfo.destAddr = 0x0052;
+				bmac_rfRxInfo.srcAddr = 0x0052;
 				#endif
 		    #ifdef NODE3
+				//bmac_rfTxInfo.destAddr = 0x0053;
 				bmac_rfRxInfo.srcAddr = 0x0053; 
 				#endif
-				pc.printf("slave initialized!\n");
+				pc.printf("slave rx initialized!\n");
         uint8_t i, len, rssi;
         int8_t val;
         char *local_rx_buf;
@@ -145,40 +147,39 @@ void slave_rx_task() {
         bmac_rx_pkt_set_buffer (rx_buf, RF_MAX_PAYLOAD_SIZE);
 
         while (1) {
-					if (bmac_rx_pkt_ready()==0) {
-									nrk_wait_until_next_period();
+				  if (!bmac_rx_pkt_ready ()){
+						nrk_wait_until_next_period ();
 					} else {
-								mole_active = 1;
-                nrk_led_toggle (RED_LED);
-                val = bmac_wait_until_rx_pkt ();
-                local_rx_buf = bmac_rx_pkt_get (&len, &rssi);
-                rxContentSuccess++;
-                slave_period_in_s = (int8_t) rx_buf[0];
-								slave_mole_timer.reset();
-								slave_mole_timer.start();
-                // Change something to make sure the buffer isn't the same if no buffer fill from Rx occurs
-                rx_buf[1] = '0';
-                // Release the RX buffer so future packets can arrive 
-                bmac_rx_pkt_release ();
-                // this is necessary
-                nrk_wait_until_next_period ();
+						pc.printf("slave got msg to activate mole.\n");
+						mole_active = 1;
+						nrk_led_set(RED_LED);
+						local_rx_buf = bmac_rx_pkt_get (&len, &rssi);
+						rxContentSuccess++;
+						slave_period_in_s = (int8_t) rx_buf[0];
+						slave_mole_timer.reset();
+						slave_mole_timer.start();
+						// Change something to make sure the buffer isn't the same if no buffer fill from Rx occurs
+						rx_buf[1] = '0';
+						// Release the RX buffer so future packets can arrive 
+						bmac_rx_pkt_release ();
+						// this is necessary
+						nrk_wait_until_next_period ();
 					}
+					
         }
 }
 
 void slave_tx_task () {
-				pc.printf("slave initialized!\n");
-				nrk_led_toggle(RED_LED);
+				pc.printf("slave tx initialized!\n");
 				wait_ms(5000);
-				nrk_led_toggle(RED_LED);
 	      #ifdef NODE1
-				bmac_rfTxInfo.destAddr = 0x0051; 
+				bmac_rfTxInfo.destAddr = 0x0050; 
 				#endif
 		    #ifdef NODE2
-				bmac_rfTxInfo.destAddr = 0x0052; 
+				bmac_rfTxInfo.destAddr = 0x0050; 
 				#endif
 		    #ifdef NODE3
-				bmac_rfTxInfo.destAddr = 0x0053; 
+				bmac_rfTxInfo.destAddr = 0x0050; 
 				#endif
         bmac_auto_ack_enable();
         // Wait until the rx_task starts up bmac
@@ -192,72 +193,83 @@ void slave_tx_task () {
 					if (!mole_active) {
 									nrk_wait_until_next_period ();
 					}
-					
-					int time_elapsed_in_us = slave_mole_timer.read_us();
-					
-					// CASE 1: MOLE TIMES OUT
-					if (time_elapsed_in_us >= ((int) slave_period_in_s) * 1000000){
-						pc.printf("mole timed out \n");
-						nrk_led_toggle(RED_LED);
-						mole_active = 0;
-						slave_mole_timer.stop();
-						slave_mole_timer.reset();
+					else {
+						int time_elapsed_in_us = slave_mole_timer.read_us();
 						
-						bmac_addr_decode_dest_mac(0x0050);  // 0xFFFF is broadcast
-						strncpy(tx_buf, (char *) &slave_period_in_s, 4); // send max time
-						int8_t val=bmac_tx_pkt(tx_buf, strlen(tx_buf));	
-						while (val==NRK_ERROR){
-							wait_ms(50);
+						// CASE 1: MOLE TIMES OUT
+						if (time_elapsed_in_us >= ((int) slave_period_in_s) * 1000000){
+							pc.printf("mole timed out \n");
+							nrk_led_clr(RED_LED);
+							mole_active = 0;
+							slave_mole_timer.stop();
+							slave_mole_timer.reset();
+							bmac_rfTxInfo.destAddr = (0x0050);  // 0xFFFF is broadcast
+							strncpy(tx_buf, (char *) &slave_period_in_s, 4); // send max time
 							int8_t val=bmac_tx_pkt(tx_buf, strlen(tx_buf));	
+							while (val==NRK_ERROR){
+								wait_ms(50);
+								int8_t val=bmac_tx_pkt(tx_buf, strlen(tx_buf));	
+							}
+							nrk_wait_until_next_period ();
 						}
-						nrk_wait_until_next_period ();
-					}
-					
-					// CASE 2: MOLE IS COVERED
-					if (photodiode == 1) { // 1 is covered
-								pc.printf("mole covered \n");
-								nrk_led_toggle(RED_LED);
-								mole_active = 0;
-								slave_mole_timer.stop();
-								slave_mole_timer.reset();
 						
-                bmac_addr_decode_dest_mac(0x0050);  // 0xFFFF is broadcast
-								strncpy(tx_buf, (char *) &time_elapsed_in_us, 4);
-                int8_t val = bmac_tx_pkt(tx_buf, strlen(tx_buf));	
-                while (val==NRK_ERROR){
-                        wait_ms(50); //TODO(iantay) retransmit code may not be good...
-                        val=bmac_tx_pkt(tx_buf, strlen(tx_buf));	
-                }
-                nrk_wait_until_next_period();
-        }
+						// CASE 2: MOLE IS COVERED
+						if (photodiode == 1) { // 1 is covered
+									pc.printf("mole covered \n");
+									nrk_led_clr(RED_LED);
+									mole_active = 0;
+									slave_mole_timer.stop();
+									slave_mole_timer.reset();
+									bmac_rfTxInfo.destAddr = (0x0050);  // 0xFFFF is broadcast
+									strncpy(tx_buf, (char *) &time_elapsed_in_us, 4);
+									int8_t val = bmac_tx_pkt(tx_buf, strlen(tx_buf));	
+									while (val==NRK_ERROR){
+													wait_ms(50); //TODO(iantay) retransmit code may not be good...
+													val=bmac_tx_pkt(tx_buf, strlen(tx_buf));	
+									}
+									nrk_wait_until_next_period();
+					}
+				}
 			}
 }
 void master_tx_task () {
 				pc.printf("master initialized\n");
+				wait_ms(1000);
+				int8_t val;
         // Wait until the rx_task starts up bmac
         // This should be called by all tasks using bmac that
         // do not call bmac_init()...
         while (!bmac_started ()) {
                 nrk_wait_until_next_period ();
         }
-	
-
-        bmac_addr_decode_set_my_mac(0x0050); 
-        bmac_auto_ack_enable();
+				nrk_time_t check_period;
+				check_period.secs=0;
+				check_period.nano_secs=20*NANOS_PER_MS;
+				val=bmac_set_rx_check_rate(check_period);
+        bmac_rfRxInfo.srcAddr = (0x0050);
+        //bmac_auto_ack_enable
+				bmac_auto_ack_disable();
 				while (1) {	
 
 					if (!clearToTx) {
 									nrk_wait_until_next_period ();
 					}
-					if (master_to_send < MOLE_APPEARANCES) {
+					if (!master_waiting_for_slave && master_to_send < MOLE_APPEARANCES) {
+													master_waiting_for_slave = 1;
 													clearToTx = 0;
-													pc.printf("MASTER: sending mole %d to node %d \n", master_to_send, node_buf[master_to_send]);
-													bmac_addr_decode_dest_mac(node_buf[master_to_send++]);  // 0xFFFF is broadcast
+													pc.printf("Master sending mole %d to node %d \n", master_to_send, node_buf[master_to_send]);
+													//bmac_rfTxInfo.destAddr = (node_buf[master_to_send++]);  // 0xFFFF is broadcast
+													bmac_rfTxInfo.destAddr = 0x0051;
+													if (val != NRK_OK){
+														pc.printf("Master could not set dest bmac");
+													}
 													// For blocking transmits, use the following function call.
 													// For this there is no need to register
 													strncpy(tx_buf, &master_period_in_s, 1);
-													int8_t val = bmac_tx_pkt(tx_buf, strlen(tx_buf));	
+													val = bmac_tx_pkt(tx_buf, 1);	
+													wait_ms(100); //TODO(iantay)
 													while (val==NRK_ERROR){
+																	pc.printf("retrying mole send \n");
 																	wait_ms(50); //TODO(iantay)
 																	val=bmac_tx_pkt(tx_buf, strlen(tx_buf));	
 													}
@@ -273,7 +285,6 @@ void nrk_create_taskset () {
         RX_TASK.task = master_rx_task;
         #endif
         #if defined(NODE2) || defined(NODE3) || defined(NODE1)
-				pc.printf("defined");
         RX_TASK.task = slave_rx_task;
         #endif
         nrk_task_set_stk( &RX_TASK, rx_task_stack, NRK_APP_STACKSIZE);
@@ -310,6 +321,7 @@ void nrk_create_taskset () {
         TX_TASK.task = master_tx_task;
         #endif
         #if defined(NODE2) || defined(NODE3) || defined(NODE1)
+				pc.printf("slave nodes are defined\n");
         TX_TASK.task = slave_tx_task;
         #endif
         nrk_task_set_stk( &TX_TASK, tx_task_stack, NRK_APP_STACKSIZE);
@@ -329,6 +341,5 @@ void nrk_create_taskset () {
         TX_TASK.offset.secs = 0;
         TX_TASK.offset.nano_secs = 0;
         nrk_activate_task (&TX_TASK);
-				pc.printf("taskset created \n");
 }
 
